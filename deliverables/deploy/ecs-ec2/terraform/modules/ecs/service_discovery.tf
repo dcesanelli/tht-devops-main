@@ -4,4 +4,32 @@ resource "aws_service_discovery_private_dns_namespace" "main" {
   description = "Private DNS namespace for service discovery"
 }
 
-# Use AWS Service Connect to allow ECS tasks to resolve DNS names in the private namespace
+resource "aws_service_discovery_service" "order_api" {
+  name = "order-api"
+
+  dns_config {
+    namespace_id = aws_service_discovery_private_dns_namespace.main.id
+
+    dns_records {
+      ttl  = 60
+      type = "SRV"
+    }
+
+    routing_policy = "MULTIVALUE"
+  }
+}
+
+resource "aws_service_discovery_service" "order_processor" {
+  name = "order-processor"
+
+  dns_config {
+    namespace_id = aws_service_discovery_private_dns_namespace.main.id
+
+    dns_records {
+      ttl  = 60
+      type = "SRV"
+    }
+
+    routing_policy = "MULTIVALUE"
+  }
+}

@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Values.dynamodb.name }}
+  namespace: {{ .Values.global.namespace }}
   labels:
     app: {{ .Values.dynamodb.name }}
 spec:

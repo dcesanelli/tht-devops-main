@@ -1,0 +1,67 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: microservices-metrics
+  labels:
+    release: {{ .Release.Name }}
+spec:
+  selector:
+    matchExpressions:
+      - { key: app, operator: In, values: [order-api, order-processor] }
+  namespaceSelector:
+    matchNames:
+      - microservices
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
+      # Enable metrics relabeling for better organization
+      metricRelabelings:
+        - action: labeldrop
+          regex: "(container|endpoint|instance|job|namespace|pod|service)"
+        - action: labelmap
+          regex: "__meta_kubernetes_pod_label_app"
+          replacement: "service"
+      # Keep essential labels
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: kubernetes_pod_name
+        - sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: kubernetes_namespace
+---
+# ServiceMonitor for Kubernetes metrics
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kube-state-metrics
+  labels:
+    release: {{ .Release.Name }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kube-state-metrics
+  namespaceSelector:
+    matchNames:
+      - kube-system
+  endpoints:
+    - port: http-metrics
+      interval: 30s
+---
+# ServiceMonitor for node metrics
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: node-exporter
+  labels:
+    release: {{ .Release.Name }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: node-exporter
+  namespaceSelector:
+    matchNames:
+      - kube-system
+  endpoints:
+    - port: metrics
+      interval: 30s

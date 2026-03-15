@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
+from prometheus_fastapi_instrumentator import Instrumentator
 import boto3
 import logging
 import os
@@ -19,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 app = FastAPI(title="Order Processor")
+Instrumentator().instrument(app).expose(app)
 
 dynamodb = boto3.resource(
     "dynamodb", endpoint_url=DYNAMODB_ENDPOINT)
@@ -114,4 +116,4 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

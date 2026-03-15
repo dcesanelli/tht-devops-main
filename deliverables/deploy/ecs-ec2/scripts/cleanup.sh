@@ -5,18 +5,18 @@ set -e
 ENVIRONMENT=$1
 ENVIRONMENT=${ENVIRONMENT:-devopstht}
 
-AWS_REGION=$(aws configure get region)
+AWS_REGION=${AWS_DEFAULT_REGION:-$(aws configure get region)}
 
 echo "Cleaning up ECR repositories..."
 
 REPO_NAME="${ENVIRONMENT}-order-api"
-IMAGES=$(aws ecr list-images --repository-name ${REPO_NAME} --query 'imageIds[*]' --output json)
+IMAGES=$(aws ecr list-images --repository-name ${REPO_NAME} --query 'imageIds[*]' --output json 2>/dev/null || echo "[]")
 if [ "$IMAGES" != "[]" ]; then
     aws ecr batch-delete-image --repository-name ${REPO_NAME} --image-ids "$IMAGES"
 fi
 
 REPO_NAME="${ENVIRONMENT}-order-processor"
-IMAGES=$(aws ecr list-images --repository-name ${REPO_NAME} --query 'imageIds[*]' --output json)
+IMAGES=$(aws ecr list-images --repository-name ${REPO_NAME} --query 'imageIds[*]' --output json 2>/dev/null || echo "[]")
 if [ "$IMAGES" != "[]" ]; then
     aws ecr batch-delete-image --repository-name ${REPO_NAME} --image-ids "$IMAGES"
 fi

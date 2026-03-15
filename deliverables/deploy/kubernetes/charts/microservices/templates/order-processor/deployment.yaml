@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{.Values.orderProcessor.name}}
+  namespace: {{.Values.global.namespace}}
+  labels:
+    app: {{.Values.orderProcessor.name}}
+spec:
+  replicas: {{.Values.orderProcessor.replicaCount}}
+  selector:
+    matchLabels:
+      app: {{.Values.orderProcessor.name}}
+  template:
+    metadata:
+      labels:
+        app: {{.Values.orderProcessor.name}}
+    spec:
+      containers:
+        - name: {{.Values.orderProcessor.name}}
+          image: "{{ .Values.orderProcessor.image.repository }}:{{ .Values.orderProcessor.image.tag }}"
+          imagePullPolicy: {{.Values.orderProcessor.image.pullPolicy}}
+          ports:
+            - containerPort: 8000
+          env:
+            - name: AWS_DEFAULT_REGION
+              value: {{.Values.orderProcessor.env.awsRegion | quote}}
+            - name: DYNAMODB_TABLE
+              value: {{.Values.orderProcessor.env.inventoryTable | quote}}
+            - name: DYNAMODB_ENDPOINT
+              value: {{.Values.orderProcessor.env.dynamodbEndpoint | quote}}
+            - name: AWS_ACCESS_KEY_ID
+              value: {{.Values.global.awsAccessKeyId | quote}}
+            - name: AWS_SECRET_ACCESS_KEY
+              value: {{.Values.global.awsSecretAccessKey | quote}}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources: {{- toYaml .Values.orderProcessor.resources | nindent 12}}

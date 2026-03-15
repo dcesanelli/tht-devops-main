@@ -1,3 +1,7 @@
+data "aws_availability_zones" "available" {
+  state = "available"
+}
+
 resource "aws_vpc" "main" {
   cidr_block                       = var.vpc_cidr
   enable_dns_hostnames             = true
@@ -7,6 +11,61 @@ resource "aws_vpc" "main" {
   tags = {
     Name = var.vpc_name
   }
+}
+
+# VPC Flow Logs for network monitoring
+resource "aws_flow_log" "vpc_flow_log" {
+  iam_role_arn    = aws_iam_role.vpc_flow_log.arn
+  log_destination = aws_cloudwatch_log_group.vpc_flow_log.arn
+  traffic_type    = "ALL"
+  vpc_id          = aws_vpc.main.id
+}
+
+resource "aws_cloudwatch_log_group" "vpc_flow_log" {
+  name              = "/aws/vpc/flowlogs/${var.environment}"
+  retention_in_days = 30
+}
+
+resource "aws_iam_role" "vpc_flow_log" {
+  name = "${var.environment}-vpc-flow-log-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "vpc-flow-logs.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "vpc_flow_log" {
+  name = "${var.environment}-vpc-flow-log-policy"
+  role = aws_iam_role.vpc_flow_log.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams"
+        ]
+        Effect = "Allow"
+        Resource = [
+          aws_cloudwatch_log_group.vpc_flow_log.arn,
+          "${aws_cloudwatch_log_group.vpc_flow_log.arn}:*"
+        ]
+      }
+    ]
+  })
 }
 
 resource "aws_subnet" "private" {
@@ -85,8 +144,7 @@ resource "aws_route_table" "private" {
     egress_only_gateway_id = aws_egress_only_internet_gateway.main.id
   }
   tags = {
-    Name        = "${var.environment}-private-rt-${count.index + 1}"
-    Environment = var.environment
+    Name = "${var.environment}-private-rt-${count.index + 1}"
   }
 }
 resource "aws_route_table" "public" {

@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.orderApi.name }}
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: {{ .Values.orderApi.name }}
+spec:
+  replicas: {{ .Values.orderApi.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.orderApi.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.orderApi.name }}
+    spec:
+      containers:
+        - name: {{ .Values.orderApi.name }}
+          image: "{{ .Values.orderApi.image.repository }}:{{ .Values.orderApi.image.tag }}"
+          imagePullPolicy: {{ .Values.orderApi.image.pullPolicy }}
+          ports:
+            - containerPort: 8000
+          env:
+            - name: AWS_DEFAULT_REGION
+              value: {{ .Values.orderApi.env.awsRegion | quote }}
+            - name: DYNAMODB_TABLE
+              value: {{ .Values.orderApi.env.ordersTable | quote }}
+            - name: DYNAMODB_ENDPOINT
+              value: {{ .Values.orderApi.env.dynamodbEndpoint | quote }}
+            - name: ORDER_PROCESSOR_URL
+              value: {{ .Values.orderApi.env.orderProcessorUrl | quote}}
+            - name: AWS_ACCESS_KEY_ID
+              value: {{ .Values.global.awsAccessKeyId | quote}}
+            - name: AWS_SECRET_ACCESS_KEY
+              value: {{ .Values.global.awsSecretAccessKey | quote}}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources: {{- toYaml .Values.orderApi.resources | nindent 12 }}

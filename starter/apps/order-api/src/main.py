@@ -3,6 +3,7 @@ from fastapi import FastAPI, HTTPException, Request
 import dns.resolver
 
 from pydantic import BaseModel
+from prometheus_fastapi_instrumentator import Instrumentator
 import boto3
 import httpx
 import os
@@ -34,6 +35,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Order API Gateway")
+Instrumentator().instrument(app).expose(app)
 
 SRV_ENDPOINT = os.getenv("SRV_ENDPOINT", None)
 DYNAMODB_ENDPOINT = os.getenv("DYNAMODB_ENDPOINT", None)
@@ -101,7 +103,7 @@ async def create_order(order: Order, request: Request):
 
             if response.status_code == 200:
                 processed_order = response.json()
-                order.quantity=Decimal(str(order.quantity))
+                order.quantity=int(str(order.quantity))
                 order_data = {
                     "order_id": str(uuid.uuid4()),
                     **order.dict(),

@@ -1,7 +1,5 @@
 #!/bin/bash
 
-
-
 APPS_DIR=../../../../starter/apps
 
 ENVIRONMENT=$1

@@ -1,3 +1,8 @@
+global:
+  awsAccessKeyId: "local"
+  awsSecretAccessKey: "local"
+  namespace: microservices
+
 dynamodb:
   name: dynamodb-local
   image:
@@ -18,3 +23,56 @@ dynamodb:
     limits:
       memory: "1Gi"
       cpu: "500m"
+
+initDynamodbJob:
+  name: dynamodb-init
+  enabled: true
+  image:
+    repository: python
+    tag: "3.12-slim"
+    pullPolicy: IfNotPresent
+
+orderApi:
+  name: order-api
+  image:
+    repository: order-api
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 8000
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "300m"
+  env:
+    awsRegion: "us-west-2"
+    ordersTable: "orders"
+    dynamodbEndpoint: "http://dynamodb-local:8000"
+    orderProcessorUrl: "http://order-processor:8000"
+
+orderProcessor:
+  name: order-processor
+  image:
+    repository: order-processor
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 8000
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "300m"
+  env:
+    awsRegion: "us-west-2"
+    inventoryTable: "inventory"
+    dynamodbEndpoint: "http://dynamodb-local:8000"

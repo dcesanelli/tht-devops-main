@@ -1,0 +1,91 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: alerts-rules
+  labels:
+    release: {{ .Release.Name }}
+spec:
+  groups:
+    - name: alerts.rules
+      rules:
+        # Availability SLO: 99.9% uptime (8.77 hours downtime per year)
+        - alert: ServiceAvailabilityViolation
+          expr: |
+            100 - (sum(rate(http_requests_total{status=~"[45].."}[5m])) by (kubernetes_namespace, kubernetes_pod_name)
+            / sum(rate(http_requests_total[5m])) by (kubernetes_namespace, kubernetes_pod_name)) * 100 < 99.9
+          for: 5m
+          labels:
+            severity: warning
+            slo: availability
+          annotations:
+            summary: "Service availability below 99.9% SLO"
+            description: "Service {{`{{ $labels.kubernetes_pod_name }}`}} in namespace {{`{{ $labels.kubernetes_namespace }}`}} has availability below 99.9% for 5 minutes"
+
+        # Latency SLO: 95% of requests < 500ms
+        - alert: ServiceLatencyViolation
+          expr: |
+            histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, kubernetes_namespace, kubernetes_pod_name)) > 0.5
+          for: 5m
+          labels:
+            severity: warning
+            slo: latency
+          annotations:
+            summary: "Service latency above 500ms SLO"
+            description: "95th percentile latency for {{`{{ $labels.kubernetes_pod_name }}`}} in namespace {{`{{ $labels.kubernetes_namespace }}`}} is above 500ms"
+
+        # Error Rate SLO: < 1% 5xx errors
+        - alert: ServiceErrorRateViolation
+          expr: |
+            sum(rate(http_requests_total{status=~"5.."}[5m])) by (kubernetes_namespace, kubernetes_pod_name)
+            / sum(rate(http_requests_total[5m])) by (kubernetes_namespace, kubernetes_pod_name) > 0.01
+          for: 5m
+          labels:
+            severity: critical
+            slo: error-rate
+          annotations:
+            summary: "Service error rate above 1% SLO"
+            description: "Error rate for {{`{{ $labels.kubernetes_pod_name }}`}} in namespace {{`{{ $labels.kubernetes_namespace }}`}} is above 1%"
+
+        # Pod restarts
+        - alert: PodRestarting
+          expr: |
+            kube_pod_container_status_restarts_total > 3
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod restarting frequently"
+            description: "Pod {{`{{ $labels.pod }}`}} in namespace {{`{{ $labels.namespace }}`}} has restarted {{`{{ $value }}`}} times"
+
+        # High CPU usage
+        - alert: HighCPUUsage
+          expr: |
+            rate(container_cpu_usage_seconds_total[5m]) / container_spec_cpu_quota * 100 > 80
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High CPU usage"
+            description: "Container {{`{{ $labels.container }}`}} in pod {{`{{ $labels.pod }}`}} has CPU usage above 80%"
+
+        # High memory usage
+        - alert: HighMemoryUsage
+          expr: |
+            container_memory_usage_bytes / container_spec_memory_limit_bytes * 100 > 80
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High memory usage"
+            description: "Container {{`{{ $labels.container }}`}} in pod {{`{{ $labels.pod }}`}} has memory usage above 80%"
+
+        # Disk space low
+        - alert: DiskSpaceLow
+          expr: |
+            (1 - node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100 > 85
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Disk space low"
+            description: "Node {{`{{ $labels.node }}`}} has less than 15% disk space available"

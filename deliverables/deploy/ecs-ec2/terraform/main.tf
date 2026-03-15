@@ -19,6 +19,12 @@ provider "aws" {
   }
 }
 
+module "ecr" {
+  source = "./modules/ecr"
+
+  environment = var.environment
+}
+
 module "vpc" {
   source = "./modules/vpc"
 
@@ -28,7 +34,6 @@ module "vpc" {
   vpc_cidr             = var.vpc_cidr
   private_subnet_cidrs = var.private_subnets_cidr
   public_subnet_cidrs  = var.public_subnets_cidr
-
 }
 
 module "iam" {
@@ -39,8 +44,8 @@ module "iam" {
   orders_table_arn    = module.dynamodb.orders_table_arn
   inventory_table_arn = module.dynamodb.inventory_table_arn
 
-  order_api_repo_arn       = var.order_api_repo_arn
-  order_processor_repo_arn = var.order_processor_repo_arn
+  order_api_repo_arn       = module.ecr.order_api_repository_arn
+  order_processor_repo_arn = module.ecr.order_processor_repository_arn
 }
 
 module "ecs" {
@@ -54,8 +59,8 @@ module "ecs" {
   alb_security_group_id = module.security.alb_security_group_id
   ecs_security_group_id = module.security.ecs_task_security_group_id
 
-  order_api_image = var.order_api_image
-  processor_image = var.processor_image
+  order_api_image = "${module.ecr.order_api_repository_url}:latest"
+  processor_image = "${module.ecr.order_processor_repository_url}:latest"
 
   ecs_execution_role_arn = module.iam.ecs_execution_role_arn
   ecs_task_role_arn      = module.iam.ecs_task_role_arn
@@ -66,7 +71,6 @@ module "ecs" {
 
   depends_on = [module.vpc]
 }
-
 
 module "vpc_endpoints" {
   source = "./modules/vpc_endpoints"
@@ -82,7 +86,6 @@ module "dynamodb" {
 
   environment = var.environment
 }
-
 
 module "security" {
   source = "./modules/security"

@@ -1,3 +1,13 @@
+output "order_api_repository_url" {
+  description = "URL of the Order API ECR repository"
+  value       = module.ecr.order_api_repository_url
+}
+
+output "order_processor_repository_url" {
+  description = "URL of the Order Processor ECR repository"
+  value       = module.ecr.order_processor_repository_url
+}
+
 output "vpc_id" {
   description = "ID of the VPC"
   value       = module.vpc.vpc_id
@@ -5,7 +15,7 @@ output "vpc_id" {
 
 output "alb_dns_name" {
   description = "DNS name of the load balancer"
-  value       =  module.ecs[0].alb_dns_name 
+  value       = module.ecs.alb_dns_name
 }
 
 output "dynamodb_orders_table" {

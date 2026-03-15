@@ -1,0 +1,44 @@
+{{- if .Values.initDynamodbJob.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.initDynamodbJob.name }}-script
+  namespace: {{ .Values.global.namespace }}
+data:
+  init-dynamodb.py: |
+{{ .Files.Get "scripts/init-dynamodb.py" | indent 4 }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Values.initDynamodbJob.name }}
+  namespace: {{ .Values.global.namespace }}
+spec:
+  backoffLimit: 5
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.initDynamodbJob.name }}
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: dynamodb-init
+          image: "{{ .Values.initDynamodbJob.image.repository }}:{{ .Values.initDynamodbJob.image.tag }}"
+          imagePullPolicy: {{ .Values.initDynamodbJob.image.pullPolicy }}
+          env:
+            - name: DDB_ENDPOINT
+              value: "http://{{ .Values.dynamodb.name }}:{{ .Values.dynamodb.service.port }}"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              pip install -q boto3 && python /scripts/init-dynamodb.py
+          volumeMounts:
+            - name: init-script
+              mountPath: /scripts
+              readOnly: true
+      volumes:
+        - name: init-script
+          configMap:
+            name: {{ .Values.initDynamodbJob.name }}-script
+{{- end }}
